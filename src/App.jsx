@@ -19,6 +19,7 @@ import {
   FileCode,
 } from 'lucide-react';
 import CloudinaryService from './services/CloudinaryService';
+import SyncService from './services/SyncService';
 import QRCodeStyling from 'qr-code-styling';
 
 // Mock data for initial UI development - now empty
@@ -113,6 +114,8 @@ function App() {
   const [viewMode, setViewMode] = useState('grid');
   const [currentFolder, setCurrentFolder] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Initialize state from localStorage if available
   const [files, setFiles] = useState(() => {
@@ -125,8 +128,6 @@ function App() {
     return saved ? JSON.parse(saved) : [{ id: 'general', name: 'General', count: 0 }];
   });
 
-  const [isUploading, setIsUploading] = useState(false);
-
   // Save to localStorage whenever state changes
   useEffect(() => {
     localStorage.setItem('manthan_files', JSON.stringify(files));
@@ -137,12 +138,22 @@ function App() {
   }, [folders]);
 
   const fetchFiles = async () => {
-    console.log('🔄 Syncing with Cloudinary...');
+    console.log('🔄 Syncing with Global Manifest...');
+    setIsSyncing(true);
     try {
+      // 1. Fetch from Global Manifest (Source of Truth for folders/names)
+      const manifest = await SyncService.getManifest();
+      
+      // 2. Fallback to Cloudinary listing to catch any stray uploads
       const resources = await CloudinaryService.listFilesByTag('portal_file');
-      console.log(`✅ Fetched ${resources?.length || 0} resources from Cloudinary.`);
+      
+      if (manifest && manifest.files && manifest.files.length > 0) {
+        setFiles(manifest.files);
+        setFolders(manifest.folders);
+        console.log('✅ Global manifest loaded.');
+      } else if (resources && resources.length > 0) {
+        console.log(`✅ Fetched ${resources?.length || 0} resources from Cloudinary.`);
 
-        if (resources && resources.length > 0) {
           const mappedFiles = resources.map(r => {
             // Priority: Context Metadata > Path > Default
             const contextFolder = r.context?.custom?.folder;
@@ -199,10 +210,12 @@ function App() {
         });
       }
     } catch (error) {
-      console.error('❌ Cloudinary sync failed:', error);
+      console.error('❌ Global sync failed:', error);
       if (error.response?.status === 401 || error.response?.status === 404) {
         console.warn('💡 Tip: Ensure "Resource List" is disabled in Cloudinary Settings -> Security to allow cross-device sync.');
       }
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -238,7 +251,7 @@ function App() {
     }
   };
 
-  const handleCreateFolder = (e) => {
+  const handleCreateFolder = async (e) => {
     e.preventDefault();
     const trimmedName = newFolderName.trim();
     if (trimmedName) {
@@ -249,6 +262,10 @@ function App() {
       };
       const updatedFolders = [...folders, newFolder];
       setFolders(updatedFolders);
+      
+      // 🔄 Sync to Global Manifest
+      await SyncService.saveManifest({ files, folders: updatedFolders });
+
       setShowFolderPrompt(false);
       setNewFolderName('');
     }
@@ -273,12 +290,17 @@ function App() {
         url: result.secure_url
       };
 
-      setFiles(prev => [newFile, ...prev]);
-
+      const updatedFiles = [newFile, ...files];
+      setFiles(updatedFiles);
+      
       // Update folder count
-      setFolders(folders.map(f =>
-        f.name === folderName ? { ...f, count: f.count + 1 } : f
-      ));
+      const updatedFolders = folders.map(f => 
+        f.name === folderName ? { ...f, count: (f.count || 0) + 1 } : f
+      );
+      setFolders(updatedFolders);
+
+      // 🔄 Sync to Global Manifest
+      await SyncService.saveManifest({ files: updatedFiles, folders: updatedFolders });
 
       alert('File uploaded successfully!');
     } catch (error) {
