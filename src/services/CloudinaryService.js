@@ -11,7 +11,7 @@ import axios from 'axios';
  * 3. Use a backend proxy to generate signatures.
  */
 
-const CLOUD_NAME = 'dov6idm2y'; 
+const CLOUD_NAME = 'dakgga4uq'; 
 const UPLOAD_PRESET = 'manthan';
 const API_KEY = '572236319176311'; // Publicly visible, but used only for list operations
 
