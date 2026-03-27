@@ -143,99 +143,20 @@ function App() {
     console.log('🔄 Syncing with Global Manifest...');
     setIsSyncing(true);
     try {
-      // 1. Fetch from Global Manifest (Source of Truth for folders/names)
+      // 1. Fetch from Global Manifest (ONLY Source of Truth)
       const manifest = await SyncService.getManifest();
-      
-      // 2. Fallback to Cloudinary listing to catch any stray uploads
-      const resources = await CloudinaryService.listFilesByTag('portal_file');
       
       if (manifest) {
         setFiles(manifest.files || []);
         setFolders(manifest.folders || [{ id: 'general', name: 'General', count: 0 }]);
-        console.log('✅ Global manifest loaded (Portal active).');
-      } else if (resources && resources.length > 0) {
-        console.log(`📡 Manifest missing, rescuing ${resources.length} files from Cloudinary...`);
-
-        const mappedFiles = resources.map(r => {
-          const publicIdParts = r.public_id.split('/');
-          const rawFileName = publicIdParts.pop();
-          const cleanName = rawFileName.replace(/_\d+$/, "").replace(/_/g, " ");
-          const extension = r.format ? `.${r.format.toLowerCase()}` : '';
-          
-          // Use context caption, or clean public_id name, or fallback toID
-          const finalName = r.context?.custom?.caption || (cleanName + extension);
-          const folderName = r.context?.custom?.folder || (publicIdParts.length > 0 ? publicIdParts.join('/') : 'General');
-          const contextSize = r.context?.custom?.size;
-
-          return {
-            id: r.public_id,
-            name: finalName,
-            size: contextSize || (r.bytes ? `${(r.bytes / 1024).toFixed(1)} KB` : 'Size Unknown'),
-            type: r.format?.toUpperCase() || 'FILE',
-            folder: folderName,
-            url: r.secure_url
-          };
-        }).filter(f => !f.id.includes('manthan_portal_sync')); // Filter out the manifest itself if detected
-
-        setFiles(mappedFiles);
-
-        // 🛡️ SMART FILTER: Hide legacy 'ghost' files if better versions exist
-        const cleanedFiles = mappedFiles.filter(f => {
-          // If the name is a random 20-char string, check if we have a better version
-          const isRandomName = /^[a-z0-9]{20,}$/.test(f.name.split('.')[0]);
-          if (isRandomName) {
-            // Check if there's another file in the same folder with a 'proper' name
-            const hasProperVersion = mappedFiles.some(other => 
-              other.folder === f.folder && 
-              !/^[a-z0-9]{20,}$/.test(other.name.split('.')[0]) &&
-              other.type === f.type
-            );
-            return !hasProperVersion; // Hide the random one if a proper one exists
-          }
-          return true;
-        });
-
-        setFiles(cleanedFiles);
-
-        // Reconstruct folders from cleaned files
-        const folderNames = Array.from(new Set(cleanedFiles.map(f => f.folder)));
-        const rescuedFolders = folderNames.map(name => ({
-          id: name.toLowerCase(),
-          name,
-          count: cleanedFiles.filter(f => f.folder === name).length
-        }));
-        
-        if (!rescuedFolders.find(f => f.name === 'General')) {
-          rescuedFolders.push({ id: 'general', name: 'General', count: 0 });
-        }
-        
-        setFolders(rescuedFolders);
-
-        // 🛡️ SELF-HEAL: Automatically save this cleaned state to the Global Manifest
-        console.log('🛡️ Self-Healing: Seeding Global Manifest from cleaned data...');
-        await SyncService.saveManifest({ files: cleanedFiles, folders: rescuedFolders });
+        console.log('✅ Global manifest loaded.');
+      } else {
+        console.log('ℹ️ No manifest found, starting fresh.');
+        setFiles([]);
+        setFolders([{ id: 'general', name: 'General', count: 0 }]);
       }
     } catch (error) {
-      console.error('❌ Global sync failed:', error);
-      if (error.response?.status === 401 || error.response?.status === 404) {
-        console.warn('💡 Tip: Ensure "Resource List" is disabled in Cloudinary Settings -> Security to allow cross-device sync.');
-      }
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const handleSync = async () => {
-    setIsSyncing(true);
-    try {
-      if (files && files.length > 0) {
-        console.log('📤 Pushing local data to global manifest...');
-        await SyncService.saveManifest({ files, folders });
-      }
-      await fetchFiles();
-      alert('Synchronization update complete! All devices should see the same data now.');
-    } catch (error) {
-      alert('Sync failed. Please check your internet connection.');
+      console.error('❌ Failed to fetch portal state:', error);
     } finally {
       setIsSyncing(false);
     }
@@ -429,13 +350,6 @@ function App() {
         </div>
 
         <div className="flex items-center gap-4">
-          <button
-            onClick={handleSync}
-            title="Sync all devices (Click on main computer first)"
-            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all"
-          >
-            <Cloud className={`w-5 h-5 ${isSyncing ? 'animate-spin' : ''}`} />
-          </button>
           {isAdmin && (
             <button
               onClick={() => setShowQRCodeModal(true)}
