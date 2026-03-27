@@ -190,6 +190,9 @@ function App() {
       }
     } catch (error) {
       console.error('❌ Cloudinary sync failed:', error);
+      if (error.response?.status === 401 || error.response?.status === 404) {
+        console.warn('💡 Tip: Ensure "Resource List" is disabled in Cloudinary Settings -> Security to allow cross-device sync.');
+      }
     }
   };
 
