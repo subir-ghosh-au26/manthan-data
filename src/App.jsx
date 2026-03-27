@@ -142,22 +142,26 @@ function App() {
       const resources = await CloudinaryService.listFilesByTag('portal_file');
       console.log(`✅ Fetched ${resources?.length || 0} resources from Cloudinary.`);
 
-      if (resources && resources.length > 0) {
-        const mappedFiles = resources.map(r => {
-          const parts = r.public_id.split('/');
-          const fileName = parts.pop();
-          const folderName = parts.length > 0 ? parts.join('/') : 'General';
+        if (resources && resources.length > 0) {
+          const mappedFiles = resources.map(r => {
+            // Priority: Context Metadata > Path > Default
+            const contextFolder = r.context?.custom?.folder;
+            const parts = r.public_id.split('/');
+            const fileName = parts.pop();
+            const pathFolder = parts.length > 0 ? parts.join('/') : null;
 
-          return {
-            id: r.public_id,
-            name: r.context?.custom?.caption || fileName || 'Untitled',
-            size: r.bytes ? `${(r.bytes / 1024).toFixed(1)} KB` : 'Size Unknown',
-            type: r.format?.toUpperCase() || 'FILE',
-            folder: folderName,
-            url: r.secure_url
-          };
-        });
-        setFiles(mappedFiles);
+            const folderName = contextFolder || pathFolder || 'General';
+
+            return {
+              id: r.public_id,
+              name: r.context?.custom?.caption || fileName || 'Untitled',
+              size: r.bytes ? `${(r.bytes / 1024).toFixed(1)} KB` : 'Size Unknown',
+              type: r.format?.toUpperCase() || 'FILE',
+              folder: folderName,
+              url: r.secure_url
+            };
+          });
+          setFiles(mappedFiles);
 
         setFolders(prevFolders => {
           const fetchedFolderNames = Array.from(new Set(mappedFiles.map(f => f.folder)));

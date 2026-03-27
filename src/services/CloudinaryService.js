@@ -29,6 +29,8 @@ const CloudinaryService = {
     formData.append('folder', folder);
     // Use a single tag for reliable client-side listing
     formData.append('tags', 'portal_file');
+    // Store folder name in context so it can be recovered on any device
+    formData.append('context', `folder=${folder}`);
 
     try {
       const response = await axios.post(
