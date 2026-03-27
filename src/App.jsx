@@ -17,6 +17,7 @@ import {
   Presentation,
   Film,
   FileCode,
+  Cloud,
 } from 'lucide-react';
 import CloudinaryService from './services/CloudinaryService';
 import SyncService from './services/SyncService';
