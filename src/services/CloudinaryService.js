@@ -32,7 +32,8 @@ const CloudinaryService = {
     // Store folder and original name in the public_id for cross-device visibility
     const cleanFileName = file.name.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9]/g, "_");
     formData.append('public_id', `${folder}/${cleanFileName}_${Date.now()}`);
-    formData.append('context', `folder=${folder}|caption=${file.name}`);
+    const fileSize = `${(file.size / 1024).toFixed(1)} KB`;
+    formData.append('context', `folder=${folder}|caption=${file.name}|size=${fileSize}`);
 
     try {
       const response = await axios.post(

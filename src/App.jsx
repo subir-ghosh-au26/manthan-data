@@ -165,11 +165,12 @@ function App() {
           // Use context caption, or clean public_id name, or fallback toID
           const finalName = r.context?.custom?.caption || (cleanName + extension);
           const folderName = r.context?.custom?.folder || (publicIdParts.length > 0 ? publicIdParts.join('/') : 'General');
+          const contextSize = r.context?.custom?.size;
 
           return {
             id: r.public_id,
             name: finalName,
-            size: r.bytes ? `${(r.bytes / 1024).toFixed(1)} KB` : 'Size Unknown',
+            size: contextSize || (r.bytes ? `${(r.bytes / 1024).toFixed(1)} KB` : 'Size Unknown'),
             type: r.format?.toUpperCase() || 'FILE',
             folder: folderName,
             url: r.secure_url
