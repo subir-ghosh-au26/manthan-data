@@ -389,14 +389,24 @@ function App() {
     return <File className="w-5 h-5 text-slate-400" />;
   };
 
-  const clearAllData = () => {
-    if (window.confirm('⚠️ Are you sure you want to clear all local portal data? This will reset your folders and cached file list. (Files on Cloudinary will not be deleted).')) {
-      localStorage.removeItem('manthan_files');
-      localStorage.setItem('manthan_folders', JSON.stringify([{ id: 'general', name: 'General', count: 0 }]));
+  const handleResetPortal = async () => {
+    if (!isAdmin) {
+      alert('Only administrators can reset the portal.');
+      return;
+    }
+    if (window.confirm('🚨 DANGER: This will PERMANENTLY delete all folders and file links from this portal for EVERYONE. \n\n(Files on Cloudinary will remain but will be hidden from the portal). \n\nAre you sure?')) {
+      const cleanFolders = [{ id: 'general', name: 'General', count: 0 }];
       setFiles([]);
-      setFolders([{ id: 'general', name: 'General', count: 0 }]);
+      setFolders(cleanFolders);
       setCurrentFolder(null);
-      alert('Portal reset complete!');
+      
+      // Update localStorage immediately
+      localStorage.setItem('manthan_files', JSON.stringify([]));
+      localStorage.setItem('manthan_folders', JSON.stringify(cleanFolders));
+
+      // 🔄 Sync empty state to Global Manifest
+      await SyncService.saveManifest({ files: [], folders: cleanFolders });
+      alert('Portal has been globally reset for all devices.');
     }
   };
 
@@ -597,12 +607,12 @@ function App() {
 
           {isAdmin && (
             <div className="mt-auto pt-6 border-t border-slate-100">
-              <button 
-                onClick={clearAllData}
-                className="w-full flex items-center gap-3 px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg transition-all uppercase tracking-wider"
+              <button
+                onClick={handleResetPortal}
+                className="flex items-center gap-3 w-full px-4 py-3 text-red-500 hover:bg-red-50 rounded-xl transition-all mt-auto group"
               >
-                <LogOut className="w-4 h-4" />
-                <span>Reset Portal</span>
+                <LogOut className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+                <span className="text-sm font-bold uppercase tracking-wider">Reset Portal (Global)</span>
               </button>
             </div>
           )}
