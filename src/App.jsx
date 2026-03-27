@@ -265,7 +265,9 @@ function App() {
 
       alert('File uploaded successfully!');
     } catch (error) {
-      alert('Upload failed. Please check your Cloudinary configuration in CloudinaryService.js');
+      console.error('Upload error details:', error);
+      const errorMsg = error.response?.data?.error?.message || error.message || 'Unknown error';
+      alert(`Upload failed: ${errorMsg}\n\nCheck Cloudinary console for: 1. Unsigned upload preset 'manthan' 2. Correct Cloud Name 'dakgga4uq'`);
     } finally {
       setIsUploading(false);
     }
