@@ -152,9 +152,19 @@ function App() {
 
             const folderName = contextFolder || pathFolder || 'General';
 
+            // Extract a clean name from the public_id if context is missing
+            const publicIdParts = r.public_id.split('/');
+            const rawFileName = publicIdParts.pop();
+            // Remove the unique timestamp suffix from the name
+            const cleanName = rawFileName.replace(/_\d+$/, "").replace(/_/g, " ");
+            
+            // Reconstruct the file name with extension for better icon matching
+            const extension = r.format ? `.${r.format.toLowerCase()}` : '';
+            const finalName = r.context?.custom?.caption || (cleanName + extension);
+
             return {
               id: r.public_id,
-              name: r.context?.custom?.caption || fileName || 'Untitled',
+              name: finalName,
               size: r.bytes ? `${(r.bytes / 1024).toFixed(1)} KB` : 'Size Unknown',
               type: r.format?.toUpperCase() || 'FILE',
               folder: folderName,
