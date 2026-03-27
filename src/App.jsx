@@ -219,6 +219,22 @@ function App() {
     }
   };
 
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      if (files && files.length > 0) {
+        console.log('📤 Pushing local data to global manifest...');
+        await SyncService.saveManifest({ files, folders });
+      }
+      await fetchFiles();
+      alert('Synchronization update complete! All devices should see the same data now.');
+    } catch (error) {
+      alert('Sync failed. Please check your internet connection.');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   useEffect(() => {
     fetchFiles();
   }, []);
@@ -379,11 +395,11 @@ function App() {
 
         <div className="flex items-center gap-4">
           <button
-            onClick={syncData}
-            title="Sync with Cloudinary"
+            onClick={handleSync}
+            title="Sync all devices (Click on main computer first)"
             className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all"
           >
-            <Upload className={`w-5 h-5 ${isUploading ? 'animate-spin' : ''}`} style={{ transform: isUploading ? 'none' : 'rotate(180deg)' }} />
+            <Cloud className={`w-5 h-5 ${isSyncing ? 'animate-spin' : ''}`} />
           </button>
           {isAdmin && (
             <button

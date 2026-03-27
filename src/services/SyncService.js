@@ -37,9 +37,11 @@ const SyncService = {
         `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/raw/upload`,
         formData
       );
-      console.log('✅ Global manifest synced to Cloudinary');
+      console.log('✅ Global manifest successfully pushed to Cloudinary');
+      return true;
     } catch (error) {
       console.error('❌ Failed to save global manifest:', error);
+      return false;
     }
   }
 };
