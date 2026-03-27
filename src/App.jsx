@@ -149,10 +149,10 @@ function App() {
       // 2. Fallback to Cloudinary listing to catch any stray uploads
       const resources = await CloudinaryService.listFilesByTag('portal_file');
       
-      if (manifest && manifest.files && manifest.files.length > 0) {
-        setFiles(manifest.files);
-        setFolders(manifest.folders);
-        console.log('✅ Global manifest loaded.');
+      if (manifest) {
+        setFiles(manifest.files || []);
+        setFolders(manifest.folders || [{ id: 'general', name: 'General', count: 0 }]);
+        console.log('✅ Global manifest loaded (Portal active).');
       } else if (resources && resources.length > 0) {
         console.log(`📡 Manifest missing, rescuing ${resources.length} files from Cloudinary...`);
 
