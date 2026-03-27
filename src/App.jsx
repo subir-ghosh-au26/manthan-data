@@ -18,6 +18,7 @@ import {
   Film,
   FileCode,
   Cloud,
+  Trash2,
 } from 'lucide-react';
 import CloudinaryService from './services/CloudinaryService';
 import SyncService from './services/SyncService';
@@ -311,6 +312,25 @@ function App() {
       alert(`Upload failed: ${errorMsg}\n\nCheck Cloudinary console for: 1. Unsigned upload preset 'manthan' 2. Correct Cloud Name 'dakgga4uq'`);
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleDelete = async (fileId) => {
+    if (!isAdmin) return;
+    if (window.confirm('⚠️ Are you sure you want to remove this file from the portal? (It will be hidden from all devices).')) {
+      const updatedFiles = files.filter(f => f.id !== fileId);
+      setFiles(updatedFiles);
+      
+      // Update folder counts
+      const updatedFolders = folders.map(folder => ({
+        ...folder,
+        count: updatedFiles.filter(f => f.folder === folder.name).length
+      }));
+      setFolders(updatedFolders);
+
+      // 🔄 Sync to Global Manifest
+      await SyncService.saveManifest({ files: updatedFiles, folders: updatedFolders });
+      alert('File removed successfully.');
     }
   };
 
@@ -644,9 +664,20 @@ function App() {
                       <h3 className="font-semibold text-slate-800 text-sm truncate max-w-[150px]">{file.name}</h3>
                       <p className="text-[10px] text-slate-400 font-medium uppercase tracking-tight mt-1">{file.type} • {file.size}</p>
                     </div>
-                    <button className="text-slate-300 hover:text-slate-600">
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      {isAdmin && (
+                        <button 
+                          onClick={() => handleDelete(file.id)}
+                          className="text-slate-300 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-all"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button className="text-slate-300 hover:text-slate-600 p-1.5">
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -676,13 +707,23 @@ function App() {
                       <td className="px-6 py-4">
                         <span className="text-[10px] font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-600">{file.type}</span>
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
                         <button
                           onClick={() => downloadFile(file.url, file.name)}
                           className="text-indigo-600 hover:text-indigo-800 p-2 rounded-lg hover:bg-indigo-50 transition-all opacity-0 group-hover:opacity-100"
+                          title="Download"
                         >
                           <Download className="w-4 h-4" />
                         </button>
+                        {isAdmin && (
+                          <button
+                            onClick={() => handleDelete(file.id)}
+                            className="text-slate-300 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
