@@ -153,62 +153,47 @@ function App() {
         setFolders(manifest.folders);
         console.log('✅ Global manifest loaded.');
       } else if (resources && resources.length > 0) {
-        console.log(`✅ Fetched ${resources?.length || 0} resources from Cloudinary.`);
+        console.log(`📡 Manifest missing, rescuing ${resources.length} files from Cloudinary...`);
 
-          const mappedFiles = resources.map(r => {
-            // Priority: Context Metadata > Path > Default
-            const contextFolder = r.context?.custom?.folder;
-            const parts = r.public_id.split('/');
-            const fileName = parts.pop();
-            const pathFolder = parts.length > 0 ? parts.join('/') : null;
+        const mappedFiles = resources.map(r => {
+          const publicIdParts = r.public_id.split('/');
+          const rawFileName = publicIdParts.pop();
+          const cleanName = rawFileName.replace(/_\d+$/, "").replace(/_/g, " ");
+          const extension = r.format ? `.${r.format.toLowerCase()}` : '';
+          
+          // Use context caption, or clean public_id name, or fallback toID
+          const finalName = r.context?.custom?.caption || (cleanName + extension);
+          const folderName = r.context?.custom?.folder || (publicIdParts.length > 0 ? publicIdParts.join('/') : 'General');
 
-            const folderName = contextFolder || pathFolder || 'General';
+          return {
+            id: r.public_id,
+            name: finalName,
+            size: r.bytes ? `${(r.bytes / 1024).toFixed(1)} KB` : 'Size Unknown',
+            type: r.format?.toUpperCase() || 'FILE',
+            folder: folderName,
+            url: r.secure_url
+          };
+        }).filter(f => !f.id.includes('manthan_portal_sync')); // Filter out the manifest itself if detected
 
-            // Extract a clean name from the public_id if context is missing
-            const publicIdParts = r.public_id.split('/');
-            const rawFileName = publicIdParts.pop();
-            // Remove the unique timestamp suffix from the name
-            const cleanName = rawFileName.replace(/_\d+$/, "").replace(/_/g, " ");
-            
-            // Reconstruct the file name with extension for better icon matching
-            const extension = r.format ? `.${r.format.toLowerCase()}` : '';
-            const finalName = r.context?.custom?.caption || (cleanName + extension);
+        setFiles(mappedFiles);
 
-            return {
-              id: r.public_id,
-              name: finalName,
-              size: r.bytes ? `${(r.bytes / 1024).toFixed(1)} KB` : 'Size Unknown',
-              type: r.format?.toUpperCase() || 'FILE',
-              folder: folderName,
-              url: r.secure_url
-            };
-          });
-          setFiles(mappedFiles);
+        // Reconstruct folders from rescued files
+        const folderNames = Array.from(new Set(mappedFiles.map(f => f.folder)));
+        const rescuedFolders = folderNames.map(name => ({
+          id: name.toLowerCase(),
+          name,
+          count: mappedFiles.filter(f => f.folder === name).length
+        }));
+        
+        if (!rescuedFolders.find(f => f.name === 'General')) {
+          rescuedFolders.push({ id: 'general', name: 'General', count: 0 });
+        }
+        
+        setFolders(rescuedFolders);
 
-        setFolders(prevFolders => {
-          const fetchedFolderNames = Array.from(new Set(mappedFiles.map(f => f.folder)));
-          const existingNames = prevFolders.map(f => f.name);
-
-          const updated = prevFolders.map(folder => ({
-            ...folder,
-            count: mappedFiles.filter(file => file.folder === folder.name).length
-          }));
-
-          const newFolders = fetchedFolderNames
-            .filter(name => !existingNames.includes(name))
-            .map(name => ({
-              id: name,
-              name: name,
-              count: mappedFiles.filter(f => f.folder === name).length
-            }));
-
-          const finalFolders = [...updated, ...newFolders];
-          if (!finalFolders.find(f => f.name === 'General')) {
-            finalFolders.push({ id: 'general', name: 'General', count: 0 });
-          }
-          console.log('📂 Restored folders:', finalFolders.map(f => f.name));
-          return finalFolders;
-        });
+        // 🛡️ SELF-HEAL: Automatically save this rescued state to the Global Manifest
+        console.log('🛡️ Self-Healing: Seeding Global Manifest from rescued data...');
+        await SyncService.saveManifest({ files: mappedFiles, folders: rescuedFolders });
       }
     } catch (error) {
       console.error('❌ Global sync failed:', error);
