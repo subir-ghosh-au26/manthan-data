@@ -27,8 +27,8 @@ const CloudinaryService = {
     formData.append('file', file);
     formData.append('upload_preset', UPLOAD_PRESET);
     formData.append('folder', folder);
-    // Add a tag to make it easy to list files later
-    formData.append('tags', `portal_file,${folder}`);
+    // Use a single tag for reliable client-side listing
+    formData.append('tags', 'portal_file');
 
     try {
       const response = await axios.post(
