@@ -179,12 +179,30 @@ function App() {
 
         setFiles(mappedFiles);
 
-        // Reconstruct folders from rescued files
-        const folderNames = Array.from(new Set(mappedFiles.map(f => f.folder)));
+        // 🛡️ SMART FILTER: Hide legacy 'ghost' files if better versions exist
+        const cleanedFiles = mappedFiles.filter(f => {
+          // If the name is a random 20-char string, check if we have a better version
+          const isRandomName = /^[a-z0-9]{20,}$/.test(f.name.split('.')[0]);
+          if (isRandomName) {
+            // Check if there's another file in the same folder with a 'proper' name
+            const hasProperVersion = mappedFiles.some(other => 
+              other.folder === f.folder && 
+              !/^[a-z0-9]{20,}$/.test(other.name.split('.')[0]) &&
+              other.type === f.type
+            );
+            return !hasProperVersion; // Hide the random one if a proper one exists
+          }
+          return true;
+        });
+
+        setFiles(cleanedFiles);
+
+        // Reconstruct folders from cleaned files
+        const folderNames = Array.from(new Set(cleanedFiles.map(f => f.folder)));
         const rescuedFolders = folderNames.map(name => ({
           id: name.toLowerCase(),
           name,
-          count: mappedFiles.filter(f => f.folder === name).length
+          count: cleanedFiles.filter(f => f.folder === name).length
         }));
         
         if (!rescuedFolders.find(f => f.name === 'General')) {
@@ -193,9 +211,9 @@ function App() {
         
         setFolders(rescuedFolders);
 
-        // 🛡️ SELF-HEAL: Automatically save this rescued state to the Global Manifest
-        console.log('🛡️ Self-Healing: Seeding Global Manifest from rescued data...');
-        await SyncService.saveManifest({ files: mappedFiles, folders: rescuedFolders });
+        // 🛡️ SELF-HEAL: Automatically save this cleaned state to the Global Manifest
+        console.log('🛡️ Self-Healing: Seeding Global Manifest from cleaned data...');
+        await SyncService.saveManifest({ files: cleanedFiles, folders: rescuedFolders });
       }
     } catch (error) {
       console.error('❌ Global sync failed:', error);
